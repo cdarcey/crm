@@ -30,7 +30,7 @@ pub struct SqliteStore {
 }
 
 impl SqliteStore {
-    pub fn open(file_path: &str) -> Result<Self, StoreError> {
+    pub fn open(file_path: &std::path::Path) -> Result<Self, StoreError> {
         let connection = rusqlite::Connection::open(file_path)
             .map_err(|e| StoreError::Database(e.to_string()))?;
 
@@ -145,7 +145,7 @@ mod tests {
     use super::*;
 
     fn store() -> SqliteStore {
-        SqliteStore::open(":memory:").expect("open in-memory db")
+        SqliteStore::open(std::path::Path::new(":memory:")).expect("open in-memory db")
     }
 
     fn valid_input() -> NewContact {
@@ -246,17 +246,17 @@ mod tests {
     #[test]
     fn data_persists_across_reopen() {
         let path = std::env::temp_dir().join("crm_test_persists_across_reopen.db");
-        let path_str = path.to_str().expect("temp path should be valid UTF-8");
         let _ = std::fs::remove_file(&path); // clear leftovers from a failed earlier run
 
         {
-            let mut store = SqliteStore::open(path_str).expect("first open");
+            let mut store = SqliteStore::open(&path).expect("first open");
             store.create(valid_input()).expect("create");
-            store.update(1, &NewContact { company: String::from("BASF"), ..valid_input() })
+            store
+                .update(1, &NewContact { company: String::from("BASF"), ..valid_input() })
                 .expect("update");
         } // store dropped here, closing the connection
 
-        let reopened = SqliteStore::open(path_str).expect("reopen");
+        let reopened = SqliteStore::open(&path).expect("reopen");
         let contacts = reopened.list();
 
         assert_eq!(contacts.len(), 1, "contact should be reloaded from disk");

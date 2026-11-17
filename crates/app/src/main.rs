@@ -3,6 +3,10 @@ use shared::{ContactStore, NewContact};
 
 use crate::sqlite_store::SqliteStore;
 mod sqlite_store;
+use std::{
+    io,
+    path::{PathBuf},
+};
 
 #[cfg(test)]
 mod store;
@@ -23,7 +27,9 @@ struct MyEguiApp {
 
 impl MyEguiApp {
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        let mut store = Box::new(SqliteStore::open("crm.db").expect("failed to open database"));
+        let db_path = database_path().expect("failed to locate app data directory");
+        let mut store: Box<dyn ContactStore> =
+            Box::new(SqliteStore::open(&db_path).expect("failed to open database"));
 
         if store.list().is_empty() {
             let seed = [
@@ -182,4 +188,14 @@ impl eframe::App for MyEguiApp {
             });
         });
     }
+}
+
+fn database_path() -> Result<PathBuf, io::Error> {
+    let data_dir = dirs::data_dir()
+        .ok_or_else(|| io::Error::other("could not find the user's app data directory"))?;
+
+    let dir = data_dir.join("crm");
+    std::fs::create_dir_all(&dir)?;
+
+    Ok(dir.join("crm.db"))
 }
